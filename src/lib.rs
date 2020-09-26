@@ -195,8 +195,8 @@
 
 #![cfg_attr(feature = "docs", feature(doc_cfg))]
 #![forbid(unsafe_code, rust_2018_idioms)]
-#![deny(future_incompatible, missing_debug_implementations, nonstandard_style)]
-#![warn(missing_docs, unreachable_pub)]
+#![deny(missing_debug_implementations, nonstandard_style)]
+#![warn(missing_docs, unreachable_pub, future_incompatible)]
 #![doc(html_favicon_url = "https://yoshuawuyts.com/assets/http-rs/favicon.ico")]
 #![doc(html_logo_url = "https://yoshuawuyts.com/assets/http-rs/logo-rounded.png")]
 
@@ -209,11 +209,8 @@ mod request;
 mod response;
 mod response_builder;
 mod route;
+mod router;
 mod server;
-
-// Expose the router for benchmarking only.
-#[doc(hidden)]
-pub mod router;
 
 pub mod convert;
 pub mod listener;
