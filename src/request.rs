@@ -29,9 +29,12 @@ pin_project_lite::pin_project! {
     }
 }
 
+/// An error returned from parsing parameters.
 #[derive(Debug)]
 pub enum ParamError<E> {
+    /// Could not find a parameter.
     NotFound(String),
+    /// Failed to parse the parameter into a type.
     ParsingError(E),
 }
 
