@@ -30,8 +30,6 @@ logger = []
 docs = ["unstable"]
 sessions = ["async-session"]
 unstable = []
-# DO NOT USE. Only exists to expose internals so they can be benchmarked.
-__internal__bench = []
 
 [dependencies]
 async-h1 = { version = "2.0.1", optional = true }
