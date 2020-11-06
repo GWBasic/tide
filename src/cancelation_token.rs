@@ -1,21 +1,18 @@
-use {
-	std::{
-        future::Future,
-		pin::Pin,
-		sync::{Arc, Mutex},
-		task::{Context, Poll, Waker},
-	},
-};
+use async_std::io;
+use std::fmt;
+use std::future::Future;
+use std::pin::Pin;
+use std::sync::{Arc, Mutex};
+use std::task::{Context, Poll, Waker};
 
-#[derive(Debug)]
 pub struct CancelationToken {
 	shared_state: Arc<Mutex<CancelationTokenState>>
 }
 
-#[derive(Debug)]
 struct CancelationTokenState {
 	canceled: bool,
-	waker: Option<Waker>
+	waker: Option<Waker>,
+	task: Option<Box<dyn Future<Output = io::Result<()>>>>
 }
 
 impl CancelationToken {
@@ -23,17 +20,33 @@ impl CancelationToken {
 		CancelationToken {
 			shared_state: Arc::new(Mutex::new(CancelationTokenState {
 				canceled: false,
-				waker: None
+				waker: None,
+				task: None
 			}))
 		}
 	}
 
-	pub fn complete(&self) {
+	pub(crate) fn set_task(&self, task: Box<dyn Future<Output = io::Result<()>>>) {
 		let mut shared_state = self.shared_state.lock().unwrap();
 
-		shared_state.canceled = true;
-		if let Some(waker) = shared_state.waker.take() {
-			waker.wake()
+		shared_state.task = Some(task);
+	}
+
+	pub async fn complete(&self) -> io::Result<()> {
+		let task = {
+			let mut shared_state = self.shared_state.lock().unwrap();
+
+			shared_state.canceled = true;
+			if let Some(waker) = shared_state.waker.take() {
+				waker.wake();
+			}
+
+			shared_state.task.take()
+		};
+
+		match task {
+			Some(task) => task.await,
+			None => Ok(())
 		}
 	}
 }
@@ -59,4 +72,14 @@ impl Clone for CancelationToken {
 			shared_state: self.shared_state.clone()
 		}
 	}
+}
+
+impl fmt::Debug for CancelationToken {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		let mut shared_state = self.shared_state.lock().unwrap();
+
+		f.debug_struct("CancelationToken")
+         .field("canceled", &shared_state.canceled)
+         .finish()
+    }
 }

@@ -2,6 +2,7 @@
 
 use async_std::io;
 use async_std::sync::Arc;
+use async_std::task;
 
 #[cfg(feature = "cookies")]
 use crate::cookies;
@@ -187,12 +188,24 @@ impl<State: Clone + Send + Sync + 'static> Server<State> {
 
     /// Asynchronously serve the app with the supplied listener. For more details, see [Listener] and [ToListener]
     pub async fn listen<TL: ToListener<State>>(self, listener: TL) -> io::Result<()> {
-        self.listen_with_cancelation_token(listener, CancelationToken::new()).await
+        listener.to_listener()?.listen(self, CancelationToken::new()).await
     }
 
-    /// Asynchronously serve the app with the supplied listener and canelation token. For more details, see [Listener] and [ToListener]
-    pub async fn listen_with_cancelation_token<TL: ToListener<State>>(self, listener: TL, cancelation_token: CancelationToken) -> io::Result<()> {
-        listener.to_listener()?.listen(self, cancelation_token).await
+    /// Asynchronously serve the app with the supplied listener. Returns a cancelation token. For more details, see [Listener] and [ToListener]
+    pub fn start<TL: ToListener<State>>(self, listener: TL) -> io::Result<CancelationToken> {        
+        match listener.to_listener() {
+            Ok(mut listener) => {
+                let cancelation_token = CancelationToken::new();
+
+                let task = listener.listen(self, cancelation_token.clone());
+                let task = task::spawn(task);
+        
+                cancelation_token.set_task(Box::new(task));
+        
+                Ok(cancelation_token)
+            },
+            Err(err) => Err(err)
+        }
     }
 
     /// Respond to a `Request` with a `Response`.
