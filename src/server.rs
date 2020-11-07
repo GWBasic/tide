@@ -198,7 +198,7 @@ impl<State: Clone + Send + Sync + 'static> Server<State> {
                 let cancelation_token = CancelationToken::new();
 
                 let task = listener.listen(self, cancelation_token.clone());
-                let task = task::spawn(task);
+                task::spawn(task);
         
                 cancelation_token.set_task(Box::new(task));
         

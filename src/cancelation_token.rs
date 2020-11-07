@@ -12,7 +12,7 @@ pub struct CancelationToken {
 struct CancelationTokenState {
 	canceled: bool,
 	waker: Option<Waker>,
-	task: Option<Box<dyn Future<Output = io::Result<()>>>>
+	task: Option<Box<dyn Future<Output = io::Result<()>> + Send + Sync + Unpin +'static>>
 }
 
 impl CancelationToken {
@@ -26,7 +26,7 @@ impl CancelationToken {
 		}
 	}
 
-	pub(crate) fn set_task(&self, task: Box<dyn Future<Output = io::Result<()>>>) {
+	pub(crate) fn set_task(&self, task: Box<dyn Future<Output = io::Result<()>> + Send + Sync + Unpin + 'static>) {
 		let mut shared_state = self.shared_state.lock().unwrap();
 
 		shared_state.task = Some(task);
