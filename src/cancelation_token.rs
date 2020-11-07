@@ -1,4 +1,3 @@
-use async_std::io;
 use std::fmt;
 use std::future::Future;
 use std::pin::Pin;
@@ -12,7 +11,6 @@ pub struct CancelationToken {
 struct CancelationTokenState {
 	canceled: bool,
 	waker: Option<Waker>,
-	task: Option<Box<dyn Future<Output = io::Result<()>> + Send + Sync + Unpin +'static>>
 }
 
 impl CancelationToken {
@@ -21,32 +19,16 @@ impl CancelationToken {
 			shared_state: Arc::new(Mutex::new(CancelationTokenState {
 				canceled: false,
 				waker: None,
-				task: None
 			}))
 		}
 	}
 
-	pub(crate) fn set_task(&self, task: Box<dyn Future<Output = io::Result<()>> + Send + Sync + Unpin + 'static>) {
+	pub fn complete(&self) {
 		let mut shared_state = self.shared_state.lock().unwrap();
 
-		shared_state.task = Some(task);
-	}
-
-	pub async fn complete(&self) -> io::Result<()> {
-		let task = {
-			let mut shared_state = self.shared_state.lock().unwrap();
-
-			shared_state.canceled = true;
-			if let Some(waker) = shared_state.waker.take() {
-				waker.wake();
-			}
-
-			shared_state.task.take()
-		};
-
-		match task {
-			Some(task) => task.await,
-			None => Ok(())
+		shared_state.canceled = true;
+		if let Some(waker) = shared_state.waker.take() {
+			waker.wake();
 		}
 	}
 }

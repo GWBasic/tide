@@ -14,7 +14,6 @@ mod unix_listener;
 
 use crate::{CancelationToken, Server};
 use async_std::io;
-use std::future::Future;
 
 pub use concurrent_listener::ConcurrentListener;
 pub use failover_listener::FailoverListener;
@@ -38,7 +37,7 @@ pub trait Listener<State: 'static>:
     /// This is the primary entrypoint for the Listener trait. listen
     /// is called exactly once, and is expected to spawn tasks for
     /// each incoming connection.
-    fn listen(&mut self, app: Server<State>, cancelation_token: CancelationToken) -> Box<dyn Future<Output = io::Result<()>> + Send + Sync + Unpin + 'static>;
+    async fn listen(&mut self, app: Server<State>, cancelation_token: CancelationToken) -> io::Result<()>;
 }
 
 /// crate-internal shared logic used by tcp and unix listeners to

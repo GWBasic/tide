@@ -3,6 +3,7 @@
 use async_std::io;
 use async_std::sync::Arc;
 use async_std::task;
+use std::future::Future;
 
 #[cfg(feature = "cookies")]
 use crate::cookies;
@@ -192,17 +193,22 @@ impl<State: Clone + Send + Sync + 'static> Server<State> {
     }
 
     /// Asynchronously serve the app with the supplied listener. Returns a cancelation token. For more details, see [Listener] and [ToListener]
-    pub fn start<TL: ToListener<State>>(self, listener: TL) -> io::Result<CancelationToken> {        
+    pub fn start<TL: ToListener<State>>(self, listener: TL) -> io::Result<(CancelationToken, Box<dyn Future<Output = io::Result<()>>>)> {        
         match listener.to_listener() {
             Ok(mut listener) => {
                 let cancelation_token = CancelationToken::new();
+                let cancelation_token_c = cancelation_token.clone();
 
-                let task = listener.listen(self, cancelation_token.clone());
-                task::spawn(task);
+                let mut listener = Arc::new(listener);
+                let mut listener_c = listener.clone();
+                drop(listener);
+
+                let task = task::spawn(async {
+                    let listener = Arc::get_mut(&mut listener_c).unwrap();
+                    listener.listen(self, cancelation_token_c).await
+                });
         
-                cancelation_token.set_task(Box::new(task));
-        
-                Ok(cancelation_token)
+                Ok((cancelation_token, Box::new(task)))
             },
             Err(err) => Err(err)
         }
